@@ -1,5 +1,4 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-import ast
 import itertools as it
 import json
 import mmap
@@ -192,7 +191,7 @@ class PackedDataset(torch.utils.data.Dataset):
 
     def build_pack(self, begin_sample_idx: int, begin_token_id: int,
                    end_sample_idx: int, end_token_id: int):
-        pack, cumulative_len, indexes, labels = [], [0], [], []
+        pack, cumulative_len, position_ids, labels = [], [0], [], []
 
         while begin_sample_idx < end_sample_idx:
             sample_idx = self.shuffled_indices[begin_sample_idx]
@@ -203,7 +202,7 @@ class PackedDataset(torch.utils.data.Dataset):
             assert len(_labels) == len(chunk), (_labels, chunk)
             labels.extend(_labels)
             cumulative_len.append(cumulative_len[-1] + len(chunk))
-            indexes.extend(list(range(len(chunk))))
+            position_ids.extend(list(range(len(chunk))))
             begin_sample_idx = begin_sample_idx + 1
             begin_token_id = 0
 
@@ -216,12 +215,12 @@ class PackedDataset(torch.utils.data.Dataset):
         assert len(_labels) == len(chunk), (_labels, chunk)
         labels.extend(_labels)
         cumulative_len.append(cumulative_len[-1] + len(chunk))
-        indexes.extend(list(range(len(chunk))))
+        position_ids.extend(list(range(len(chunk))))
 
         out = {
             'input_ids': pack,
             'cumulative_len': cumulative_len,
-            'indexes': indexes,
+            'position_ids': position_ids,
             'labels': labels
         }
         return out
@@ -309,7 +308,7 @@ def load_intern_repo_untokenized_dataset(processed_dataset_dict_path=None,
         with open(fp) as file:
             lines = file.readlines()
             for line in lines:
-                line = ast.literal_eval(line)
+                line = json.loads(line)
                 dataset.append({'messages': line})
         dataset = Dataset.from_list(dataset)
         dataset = process(

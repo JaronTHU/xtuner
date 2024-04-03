@@ -29,7 +29,8 @@ class EvaluateChatHook(Hook):
                  every_n_iters=None,
                  max_new_tokens=600,
                  stop_word=None,
-                 stop_words=[]):
+                 stop_words=[],
+                 generation_kwargs={}):
         self.evaluation_inputs = evaluation_inputs
         if isinstance(self.evaluation_inputs, str):
             self.evaluation_inputs = [self.evaluation_inputs]
@@ -69,8 +70,9 @@ class EvaluateChatHook(Hook):
         if image_processor is not None:
             self.image_processor = BUILDER.build(image_processor)
         self.stop_criteria = StoppingCriteriaList()
+
         # default generation config
-        self.gen_config = GenerationConfig(
+        default_generation_kwargs = dict(
             max_new_tokens=max_new_tokens,
             do_sample=True,
             temperature=0.1,
@@ -79,8 +81,10 @@ class EvaluateChatHook(Hook):
             eos_token_id=self.tokenizer.eos_token_id,
             pad_token_id=self.tokenizer.pad_token_id
             if self.tokenizer.pad_token_id is not None else
-            self.tokenizer.eos_token_id,
-        )
+            self.tokenizer.eos_token_id)
+        default_generation_kwargs.update(generation_kwargs)
+        self.gen_config = GenerationConfig(**default_generation_kwargs)
+
         self.stop_criteria = StoppingCriteriaList()
         for word in stop_words:
             self.stop_criteria.append(
@@ -89,7 +93,7 @@ class EvaluateChatHook(Hook):
     def _save_eval_output(self, runner, eval_outputs):
         save_path = os.path.join(runner.log_dir, 'vis_data',
                                  f'eval_outputs_iter_{runner.iter}.txt')
-        with open(save_path, 'w') as f:
+        with open(save_path, 'w', encoding='utf-8') as f:
             for i, output in enumerate(eval_outputs):
                 f.write(f'Eval output {i + 1}:\n{output}\n\n')
 
@@ -129,7 +133,8 @@ class EvaluateChatHook(Hook):
                     input_ids.append(IMAGE_TOKEN_INDEX)
             input_ids = torch.tensor(input_ids).to(device)
             visual_outputs = model.visual_encoder(
-                image.unsqueeze(0), output_hidden_states=True)
+                image.unsqueeze(0).to(model.visual_encoder.dtype),
+                output_hidden_states=True)
             pixel_values = model.projector(
                 visual_outputs.hidden_states[model.visual_select_layer][:, 1:])
 
@@ -215,6 +220,24 @@ class EvaluateChatHook(Hook):
         runner.logger.info('before_train in EvaluateChatHook.')
         self._generate_samples(runner, max_new_tokens=50)
 
+    def _is_save_checkpoint(self, runner):
+        hooks = runner.hooks
+        checkpoint_hook = None
+        for hook in hooks:
+            if type(hook).__name__ == 'CheckpointHook':
+                checkpoint_hook = hook
+                break
+        if checkpoint_hook is None or checkpoint_hook.by_epoch:
+            return False
+
+        if checkpoint_hook.every_n_train_iters(
+            runner, checkpoint_hook.interval, checkpoint_hook.save_begin) or \
+                (checkpoint_hook.save_last and
+                 checkpoint_hook.is_last_train_iter(runner)):
+            return True
+
+        return False
+
     def after_train_iter(self,
                          runner,
                          batch_idx: int,
@@ -223,12 +246,7 @@ class EvaluateChatHook(Hook):
         if self.every_n_iters is None:
             return
 
-        save_eval_output = False
-        try:
-            save_ckpt_freq = runner.cfg.default_hooks.checkpoint.interval
-            save_eval_output = self.every_n_train_iters(runner, save_ckpt_freq)
-        except KeyError:
-            pass
+        save_eval_output = self._is_save_checkpoint(runner)
 
         do_chat = (
             save_eval_output

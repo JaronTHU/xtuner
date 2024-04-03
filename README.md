@@ -16,6 +16,7 @@
 🔍 Explore our models on
 [![Static Badge](https://img.shields.io/badge/-gery?style=social&label=🤗%20Huggingface)](https://huggingface.co/xtuner)
 [![Static Badge](https://img.shields.io/badge/-gery?style=social&label=🤖%20ModelScope)](https://www.modelscope.cn/organization/xtuner)
+[![Static Badge](https://img.shields.io/badge/-gery?style=social&label=🧰%20OpenXLab)](https://openxlab.org.cn/usercenter/xtuner)
 
 English | [简体中文](README_zh-CN.md)
 
@@ -23,16 +24,17 @@ English | [简体中文](README_zh-CN.md)
 
 ## 🎉 News
 
-- **\[2024/02\]** Support [Qwen1.5](https://qwenlm.github.io/blog/qwen1.5/) models!
-- **\[2024/01\]** Support [InternLM2](https://huggingface.co/internlm) models! The latest VLM [LLaVA-Internlm2-7B](https://huggingface.co/xtuner/llava-internlm2-7b) / [20B](https://huggingface.co/xtuner/llava-internlm2-20b) models are released, with impressive performance!
+- **\[2024/02\]** Support [Gemma](xtuner/configs/gemma) models!
+- **\[2024/02\]** Support [Qwen1.5](xtuner/configs/qwen/qwen1_5) models!
+- **\[2024/01\]** Support [InternLM2](xtuner/configs/internlm) models! The latest VLM [LLaVA-Internlm2-7B](https://huggingface.co/xtuner/llava-internlm2-7b) / [20B](https://huggingface.co/xtuner/llava-internlm2-20b) models are released, with impressive performance!
 - **\[2024/01\]** Support [DeepSeek-MoE](https://huggingface.co/deepseek-ai/deepseek-moe-16b-chat) models! 20GB GPU memory is enough for QLoRA fine-tuning, and 4x80GB for full-parameter fine-tuning. Click [here](xtuner/configs/deepseek/) for details!
 - **\[2023/12\]** 🔥 Support multi-modal VLM pretraining and fine-tuning with [LLaVA-v1.5](https://github.com/haotian-liu/LLaVA) architecture! Click [here](xtuner/configs/llava/README.md) for details!
 - **\[2023/12\]** 🔥 Support [Mixtral 8x7B](https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1) models! Click [here](xtuner/configs/mixtral/README.md) for details!
-- **\[2023/11\]** Support [ChatGLM3-6B](https://huggingface.co/THUDM/chatglm3-6b) model!
+- **\[2023/11\]** Support [ChatGLM3-6B](xtuner/configs/chatglm) model!
 - **\[2023/10\]** Support [MSAgent-Bench](https://modelscope.cn/datasets/damo/MSAgent-Bench) dataset, and the fine-tuned LLMs can be applied by [Lagent](https://github.com/InternLM/lagent)!
 - **\[2023/10\]** Optimize the data processing to accommodate `system` context. More information can be found on [Docs](docs/en/user_guides/dataset_format.md)!
-- **\[2023/09\]** Support [InternLM-20B](https://huggingface.co/internlm) models!
-- **\[2023/09\]** Support [Baichuan2](https://huggingface.co/baichuan-inc) models!
+- **\[2023/09\]** Support [InternLM-20B](xtuner/configs/internlm) models!
+- **\[2023/09\]** Support [Baichuan2](xtuner/configs/baichuan) models!
 - **\[2023/08\]** XTuner is released, with multiple fine-tuned adapters on [HuggingFace](https://huggingface.co/xtuner).
 
 ## 📖 Introduction
@@ -115,6 +117,7 @@ XTuner is an efficient, flexible and full-featured toolkit for fine-tuning large
   <li><a href="https://huggingface.co/baichuan-inc/Baichuan2-7B-Base">Baichuan2</a></li>
   <li><a href="https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1">Mixtral 8x7B</a></li>
   <li><a href="https://huggingface.co/deepseek-ai/deepseek-moe-16b-chat">DeepSeek MoE</a></li>
+  <li><a href="https://huggingface.co/google">Gemma</a></li>
   <li>...</li>
 </ul>
 </td>
