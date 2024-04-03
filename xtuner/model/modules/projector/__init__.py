@@ -4,7 +4,13 @@ from transformers import AutoConfig, AutoModel
 from .configuration_projector import ProjectorConfig
 from .modeling_projector import ProjectorModel
 
+from .configuration_vllava_projector import VLLaVAQFormerConfig
+from .modeling_vllava_projector import VLLaVAQFormerModel
+
 AutoConfig.register('projector', ProjectorConfig)
 AutoModel.register(ProjectorConfig, ProjectorModel)
 
-__all__ = ['ProjectorConfig', 'ProjectorModel']
+AutoConfig.register('vllava_qformer_projector', VLLaVAQFormerConfig)
+AutoModel.register(VLLaVAQFormerConfig, VLLaVAQFormerModel)
+
+__all__ = ['ProjectorConfig', 'ProjectorModel', 'VLLaVAQFormerConfig', 'VLLaVAQFormerModel']
