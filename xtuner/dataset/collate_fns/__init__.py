@@ -1,5 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from .defalut_collate_fn import default_collate_fn
+from .default_collate_fn import default_collate_fn
 from .mmlu_collate_fn import mmlu_collate_fn
 
 from .vllava_collate_fn import vllava_collate_fn
