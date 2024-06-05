@@ -7,25 +7,34 @@ import torch
 import transformers
 from mmengine import print_log
 from mmengine.utils import digit_version
+from transformers.integrations import is_deepspeed_zero3_enabled
+from transformers.utils.import_utils import is_flash_attn_2_available
 
 from .baichuan import (baichuan2_norm_head_forward, baichuan_7b_attn_forward,
                        baichuan_13b_attn_forward)
 from .yi import yi_attn_forward
 
-IS_LOW_VERSION_TRANSFORMERS = digit_version(
-    transformers.__version__) < digit_version('4.38')
+LOWEST_TRANSFORMERS_VERSION = dict(
+    internlm2=digit_version('4.36'),
+    internlm=digit_version('4.36'),
+    llama=digit_version('4.36'),
+    phi3=digit_version('4.39'),
+    yi=digit_version('4.36'),
+    mistral=digit_version('4.36'),
+    # Training mixtral with lower version may lead to nccl timeout
+    # Refer to https://github.com/microsoft/DeepSpeed/issues/5066
+    mixtral=digit_version('4.40'),
+    cohere=digit_version('4.40'),
+    qwen2=digit_version('4.39'),
+    qwen2_moe=digit_version('4.40'),
+)
+
+TRANSFORMERS_VERSION = digit_version(transformers.__version__)
+IS_LOW_VERSION_TRANSFORMERS = TRANSFORMERS_VERSION < digit_version('4.38')
 # Transformers requires torch version >= 2.1.1 when using Torch SDPA.
 # Refer to https://github.com/huggingface/transformers/blob/caa5c65db1f4db617cdac2ad667ba62edf94dd98/src/transformers/modeling_utils.py#L1611  # noqa: E501
 SUPPORT_FLASH1 = digit_version(torch.__version__) >= digit_version('2.1.1')
-SUPPORT_FLASH2 = False
-
-try:
-    from flash_attn import flash_attn_func  # pre-check # noqa: F401
-
-    SUPPORT_FLASH2 = True
-except ImportError:
-    pass
-
+SUPPORT_FLASH2 = is_flash_attn_2_available()
 SUPPORT_FLASH = SUPPORT_FLASH1 or SUPPORT_FLASH2
 
 USE_TRITON_KERNEL = bool(os.getenv('USE_TRITON_KERNEL', default=0))
@@ -60,9 +69,10 @@ def dispatch_llama_attn_forward(model, use_varlen_attn):
     print_log(NO_ATTN_WEIGHTS_MSG, 'current', logging.WARNING)
     for module in model.modules():
         # Do not need to dispatch if
-        # type(module).__name__ == 'LlamaSdpaAttention', as flash_attn is
-        # required when using sequence parallel
-        if type(module).__name__ in ('LlamaAttention', 'LlamaFlashAttention2'):
+        # type(module).__name__ in ('LlamaAttention', 'LlamaSdpaAttention').
+        # If we set `attn_implementation` to `sdpa` or `eager` in xtuner
+        # configs, we can not use varlen attn and sequence parallel.
+        if type(module).__name__ == 'LlamaFlashAttention2':
             if use_varlen_attn:
                 print_log('dispatch llama varlen attn forward', 'current')
                 if IS_LOW_VERSION_TRANSFORMERS:
@@ -174,8 +184,11 @@ def dispatch_internlm2_attn_forward(model, use_varlen_attn):
 
     print_log(NO_ATTN_WEIGHTS_MSG, 'current', logging.WARNING)
     for module in model.modules():
-        if type(module).__name__ in ('InternLM2Attention',
-                                     'InternLM2FlashAttention2'):
+        # Do not need to dispatch if
+        # type(module).__name__ == 'InternLM2Attention'.
+        # If we set `attn_implementation` to `eager` in xtuner
+        # configs, we can not use varlen attn and sequence parallel.
+        if type(module).__name__ == 'InternLM2FlashAttention2':
             if use_varlen_attn:
                 print_log('dispatch internlm2 varlen attn forward', 'current')
                 module.forward = types.MethodType(
@@ -308,9 +321,12 @@ def dispatch_mistral_attn_forward(model, use_varlen_attn):
 
     print_log(NO_ATTN_WEIGHTS_MSG, 'current', logging.WARNING)
     for module in model.modules():
-        if type(module).__name__ in ('MistralAttention',
-                                     'MistralFlashAttention2',
-                                     'MixtralAttention',
+        # Do not need to dispatch if
+        # type(module).__name__ in ('MistralAttention', 'MistralSdpaAttention',
+        #                           'MixtralAttention', 'MixtralSdpaAttention')
+        # If we set `attn_implementation` to `sdpa` or `eager` in xtuner
+        # configs, we can not use varlen attn and sequence parallel.
+        if type(module).__name__ in ('MistralFlashAttention2',
                                      'MixtralFlashAttention2'):
             if use_varlen_attn:
                 print_log('dispatch mistral varlen attn forward', 'current')
@@ -373,10 +389,10 @@ def dispatch_cohere_attn_forward(model, use_varlen_attn):
     print_log(NO_ATTN_WEIGHTS_MSG, 'current', logging.WARNING)
     for module in model.modules():
         # Do not need to dispatch if
-        # type(module).__name__ == 'CohereSdpaAttention', as flash_attn is
-        # required when using sequence parallel
-        if type(module).__name__ in ('CohereAttention',
-                                     'CohereFlashAttention2'):
+        # type(module).__name__ in ('CohereAttention', 'CohereSdpaAttention').
+        # If we set `attn_implementation` to `sdpa` or `eager` in xtuner
+        # configs, we can not use varlen attn and sequence parallel.
+        if type(module).__name__ == 'CohereFlashAttention2':
             print_log('dispatch cohere attn forward', 'current')
             module.forward = types.MethodType(cohere_attn_forward, module)
 
@@ -401,8 +417,12 @@ def dispatch_qwen2_attn_forward(model, use_varlen_attn):
 
     print_log(NO_ATTN_WEIGHTS_MSG, 'current', logging.WARNING)
     for module in model.modules():
-        if type(module).__name__ in ('Qwen2Attention', 'Qwen2FlashAttention2',
-                                     'Qwen2MoeAttention',
+        # Do not need to dispatch if
+        # type(module).__name__ in ('Qwen2Attention', 'Qwen2SdpaAttention',
+        #                         'Qwen2MoeAttention', 'Qwen2MoeSdpaAttention')
+        # If we set `attn_implementation` to `sdpa` or `eager` in xtuner
+        # configs, we can not use varlen attn and sequence parallel.
+        if type(module).__name__ in ('Qwen2FlashAttention2',
                                      'Qwen2MoeFlashAttention2'):
             if use_varlen_attn:
                 print_log('dispatch qwen2 varlen attn forward', 'current')
@@ -436,7 +456,44 @@ def set_qwen_moe_blocks_z3_leaf_modules(model):
     set_z3_leaf_modules(model, [Qwen2MoeSparseMoeBlock])
 
 
+def check_transformers_version(model):
+
+    def check(model_name):
+        msg = '{} requires transformers version at least {}, but got {}'
+        assert TRANSFORMERS_VERSION >= LOWEST_TRANSFORMERS_VERSION[
+            model_name], msg.format(model_name,
+                                    LOWEST_TRANSFORMERS_VERSION[model_name],
+                                    TRANSFORMERS_VERSION)
+
+    model_name = model.__class__.__name__.lower()
+
+    if 'internlm2' in model_name:
+        check('internlm2')
+    elif 'internlm' in model_name:
+        check('internlm')
+    elif 'llama' in model_name:
+        check('llama')
+    elif 'phi3' in model_name:
+        check('phi3')
+    elif 'baichuan' in model_name:
+        check('baichuan')
+    elif 'yi' in model_name:
+        check('yi')
+    elif 'mistral' in model_name:
+        check('mistral')
+    elif 'mixtral' in model_name:
+        check('mixtral')
+    elif 'cohere' in model_name:
+        check('cohere')
+    elif 'qwen2moe' in model_name:
+        check('qwen2moe')
+    elif 'qwen2' in model_name:
+        check('qwen2')
+
+
 def dispatch_modules(model, use_varlen_attn=False):
+    check_transformers_version(model)
+
     model_name = model.__class__.__name__.lower()
     if 'internlm2' in model_name:
         dispatch_internlm2_attn_forward(model, use_varlen_attn)
@@ -467,6 +524,8 @@ def dispatch_modules(model, use_varlen_attn=False):
         if USE_TRITON_KERNEL:
             dispatch_mistral_rmsnorm_forward(model)
         replace_mistral_rote(model)
+        if 'moe' in model_name and is_deepspeed_zero3_enabled():
+            set_mixtral_moe_blocks_z3_leaf_modules(model)
     elif 'cohere' in model_name:
         dispatch_cohere_attn_forward(model, use_varlen_attn)
         dispatch_cohere_layernorm_forward(model)
@@ -475,6 +534,8 @@ def dispatch_modules(model, use_varlen_attn=False):
         dispatch_qwen2_attn_forward(model, use_varlen_attn)
         if USE_TRITON_KERNEL:
             dispatch_qwen2_rmsnorm_forward(model)
+        if 'moe' in model_name and is_deepspeed_zero3_enabled():
+            set_qwen_moe_blocks_z3_leaf_modules(model)
 
 
 __all__ = ['dispatch_modules']
