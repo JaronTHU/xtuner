@@ -317,6 +317,11 @@ def main():
                 optim_wrapper = dict(
                     type='DeepSpeedOptimWrapper',
                     optimizer=cfg.optim_wrapper.optimizer)
+
+                # inherit the paramwise_cfg if provided
+                if hasattr(cfg.optim_wrapper, 'paramwise_cfg'):
+                    optim_wrapper['paramwise_cfg'] = cfg.optim_wrapper.paramwise_cfg
+
                 cfg.__setitem__('optim_wrapper', optim_wrapper)
                 cfg.runner_type = 'FlexibleRunner'
 

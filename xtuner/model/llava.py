@@ -31,7 +31,8 @@ class LLaVAModel(BaseModel):
                  llm_lora=None,
                  visual_encoder_lora=None,
                  use_activation_checkpointing=True,
-                 max_position_embeddings=None):
+                 max_position_embeddings=None,
+                 special_tokens=None):
         super().__init__()
         self.freeze_llm = freeze_llm
         self.freeze_visual_encoder = freeze_visual_encoder
@@ -40,6 +41,9 @@ class LLaVAModel(BaseModel):
                 llm = self._dispatch_lm_model_cfg(llm, max_position_embeddings)
 
             self.llm = self._build_from_cfg_or_module(llm)
+            
+            if special_tokens is not None:
+                self.llm.resize_token_embeddings(self.llm.get_input_embeddings().weight.size(0) + len(special_tokens))
             self.visual_encoder = self._build_from_cfg_or_module(
                 visual_encoder)
         self.llm.config.use_cache = False
@@ -78,6 +82,9 @@ class LLaVAModel(BaseModel):
         self.use_visual_encoder_lora = visual_encoder_lora is not None
 
         if self.use_llm_lora:
+            # use lora so the correspeonding embeddings are zero
+            if special_tokens is not None:
+                self.llm.get_input_embeddings().weight[-len(special_tokens):].zero_()
             self._prepare_llm_for_lora(llm_lora, use_activation_checkpointing)
         if self.use_visual_encoder_lora:
             self._prepare_visual_encoder_for_lora(
