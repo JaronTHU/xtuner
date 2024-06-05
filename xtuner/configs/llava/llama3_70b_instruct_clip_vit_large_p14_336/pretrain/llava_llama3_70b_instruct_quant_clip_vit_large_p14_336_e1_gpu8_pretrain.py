@@ -32,23 +32,23 @@ prompt_template = PROMPT_TEMPLATE.llama3_chat
 max_length = int(2048 - (336 / 14)**2)
 
 # Scheduler & Optimizer
-batch_size = 1  # per_device
-accumulative_counts = 256
-dataloader_num_workers = 0
+batch_size = 32  # per_device
+accumulative_counts = 1
+dataloader_num_workers = 4
 max_epochs = 1
 optim_type = AdamW
-lr = 1e-3
+lr = 5e-4
 betas = (0.9, 0.999)
 weight_decay = 0
 max_norm = 1  # grad clip
 warmup_ratio = 0.03
 
 # Save
-save_steps = 50000
+save_steps = 500
 save_total_limit = 2  # Maximum checkpoints to keep (-1 means unlimited)
 
 # Evaluate the generation performance during the training
-evaluation_freq = 50000
+evaluation_freq = 500
 SYSTEM = ''
 evaluation_images = 'https://llava-vl.github.io/static/images/view.jpg'
 evaluation_inputs = ['请描述一下这张照片', 'Please describe this picture']
